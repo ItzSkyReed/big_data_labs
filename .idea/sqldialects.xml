@@ -2,6 +2,9 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/Lab1/Выполнение задания.md" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/Lab3/tasks/task1.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/Lab3/tasks/task2.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/Lab3/tasks/task3.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

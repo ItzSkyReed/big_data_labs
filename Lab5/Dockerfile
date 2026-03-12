@@ -3,6 +3,7 @@ FROM postgres:18
 
 # Копируем папку с наборами данных внутрь образа
 # Она будет доступна для скрипта инициализации
-COPY datasets /datasets/
+COPY datasets/ /datasets/
+
 # Копируем скрипт инициализации, который будет исполнен при старте
-COPY Lab2/init.sh /docker-entrypoint-initdb.d/
+COPY Lab5/init.sh /docker-entrypoint-initdb.d/

@@ -1,0 +1,19 @@
+services:
+  postgres:
+    build:
+      context: ..
+      dockerfile: Lab5/Dockerfile
+    container_name: postgres_logs_db_5
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      SECRET_HASH: ${SECRET_HASH}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+volumes:
+  pgdata:    
+    name: ${VOLUME_NAME}

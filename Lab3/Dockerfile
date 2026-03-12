@@ -6,4 +6,4 @@ FROM postgres:18
 COPY datasets/ /datasets/
 
 # Копируем скрипт инициализации, который будет исполнен при старте
-COPY init.sh /docker-entrypoint-initdb.d/
+COPY Lab3/init.sh /docker-entrypoint-initdb.d/

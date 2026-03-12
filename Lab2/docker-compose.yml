@@ -1,6 +1,8 @@
 services:
   postgres:
-    build: .
+    build:
+      context: ..
+      dockerfile: Lab2/Dockerfile
     container_name: postgres_logs_db_2
     environment:
       POSTGRES_USER: ${DB_USER}

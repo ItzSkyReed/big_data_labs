@@ -105,5 +105,6 @@ venv.bak/
 dmypy.json
 .pyre/
 .pytype/
+.idea/
 cython_debug/
 **/*.env

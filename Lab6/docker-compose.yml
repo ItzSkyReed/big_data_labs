@@ -2,7 +2,7 @@ services:
   postgres:
     build:
       context: ..
-      dockerfile: Lab5/Dockerfile
+      dockerfile: Lab6/Dockerfile
     container_name: postgres_logs_db_6
     environment:
       POSTGRES_USER: ${DB_USER}

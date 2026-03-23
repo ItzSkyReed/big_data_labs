@@ -7,11 +7,11 @@ from psycopg2._psycopg import connection
 
 """
  Требуется создать отдельную схему dmr  (Data Mart Repository) для аналитических данных и
- разместить в ней витрину analytics_student_performance_performance.
+ разместить в ней витрину analytics_student_performance.
 
  Требования:
 - Создать схему dmr если она не существует
-- Создать витрину dmr.analytics_student_performance_performance с агрегированными данными.
+- Создать витрину dmr.analytics_student_performance с агрегированными данными.
 - Реализация через функции
 
 Структура витрины:

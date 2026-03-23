@@ -1,13 +1,20 @@
+import os
+import sys
+
+from dotenv import load_dotenv
+import psycopg2
+from psycopg2._psycopg import connection
+
 """
- Требуется создать отдельную схему dmr  (Data Mart Repository) для аналитических данных и 
- разместить в ней витрину analytics_student_performancee.
+ Требуется создать отдельную схему dmr  (Data Mart Repository) для аналитических данных и
+ разместить в ней витрину analytics_student_performance_performance.
 
  Требования:
 - Создать схему dmr если она не существует
-- Создать витрину dmr.analytics_student_performance с агрегированными данными.
+- Создать витрину dmr.analytics_student_performance_performance с агрегированными данными.
 - Реализация через функции
 
-Структура витрины: 
+Структура витрины:
 Поле	- Тип данных	- Описание
 student_id	- INTEGER	- ID студента
 course_id -	INTEGER	ID - курса
@@ -28,48 +35,29 @@ peak_activity_week	- INTEGER	- Неделя с максимальной акти
 consistency_score	- DECIMAL(5,2)	- Коэффициент стабильности активности (0-1)
 activity_category	- VARCHAR	- Категория активности (низкая/средняя/высокая)
 last_update	- TIMESTAMP	- Дата обновления записи
-
 """
-
-
-# Ниже представлен пример реализации витрины dmr.analytics_student
-# Поле	- Тип данных	- Описание
-# student_id	- INTEGER	- ID студента
-# course_id -	INTEGER	ID - курса
-# department_id -	INTEGER	- Код кафедры
-# semester	- INTEGER	- Номер семестра
-# course_year	- INTEGER	- Курс обучения
-# final_grade -	INTEGER -	Итоговая оценка
-# last_update	- TIMESTAMP	- Дата обновления записи
-
-import os
-import sys
-from dotenv import load_dotenv
-import psycopg2
-from psycopg2 import sql
-from psycopg2.extras import execute_values
 
 # Загружаем переменные из .env файла (если он есть)
 load_dotenv()
 
-# получение параметров подключения
+
 def get_db_config():
     """
-    Формирует словарь с параметрами подключения к БД.    
+    Формирует словарь с параметрами подключения к БД.
     """
     load_dotenv()
     config = {
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': os.getenv('DB_PORT', '5432'),
-        'database': os.getenv('DB', 'educational_portal'),
-        'user': os.getenv('USER', 'postgres'),
-        'password': os.getenv('PASSWORD', '')
-    }  
-    print(config)
+        'database': os.getenv('DB_NAME', 'educational_portal'),
+        'user': os.getenv('DB_USER', 'postgres'),
+        'password': os.getenv('DB_PASSWORD', '')
+    }
     return config
 
+
 # подключение к БД
-def get_connection():
+def get_connection() -> connection:
     """Устанавливает и возвращает соединение с БД."""
     try:
         config = get_db_config()
@@ -80,129 +68,282 @@ def get_connection():
         print(f"Ошибка подключения к БД: {e}")
         sys.exit(1)
 
-# создание нового слоя в БД (схема dmr)
-def create_schema(conn):
+
+def create_schema(conn: connection):
     """Создаёт схему dmr, если она ещё не существует."""
     with conn.cursor() as cur:
-        cur.execute("CREATE SCHEMA IF NOT EXISTS dmr;")
+        cur.execute(
+            """
+            CREATE SCHEMA IF NOT EXISTS dmr
+            """
+        )
         conn.commit()
-        print("Схема dmr успешно создана (или уже существовала).")
+        print("Схема dmr создана (или уже существовала).")
 
-# создание таблицы для витрины
-# student_id	- INTEGER	- ID студента
-# course_id -	INTEGER	ID - курса
-# department_id -	INTEGER	- Код кафедры
-# department_name	 - VARCHAR - Название кафедры
-# education_level	- VARCHAR	- Уровень образования
-# education_base - VARCHAR -	Основа обучения
-# semester	- INTEGER	- Номер семестра
-# course_year	- INTEGER	- Курс обучения
-# final_grade -	INTEGER -	Итоговая оценка
-# total_events -	INTEGER	- Всего событий за семестр
-# avg_weekly_events	- DECIMAL(10,2)	- Среднее событий в неделю
-# total_course_views	- INTEGER	- Всего просмотров курса
-# total_quiz_views	- INTEGER	- Всего просмотров тестов
-# total_module_views -	INTEGER - Всего просмотров модулей
-# total_submissions	- INTEGER	- Всего отправленных заданий
-# peak_activity_week	- INTEGER	- Неделя с максимальной активностью
-# consistency_score	- DECIMAL(5,2)	- Коэффициент стабильности активности (0-1)
-# activity_category	- VARCHAR	- Категория активности (низкая/средняя/высокая)
-# last_update	- TIMESTAMP	- Дата обновления записи
-def create_table(conn):
-    """Создаёт таблицу dmr.analytics_student с заданной структурой."""
-    create_table_query = """
-    CREATE TABLE IF NOT EXISTS dmr.analytics_student (
-        student_id     INTEGER NOT NULL,
-        course_id      INTEGER NOT NULL,
-        department_id  INTEGER,
-        department_name VARCHAR(255),
-        education_level VARCHAR(255),
-        education_base VARCHAR(255),
-        semester       INTEGER,
-        course_year    INTEGER,
-        final_grade    INTEGER CHECK (final_grade IN (2,3,4,5)),
-        
-        last_update    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (student_id, course_id)
-    );
-    """
+
+def create_table(conn: connection):
+    """Создаёт пустой каркас витрины."""
+    query = """
+            CREATE TABLE IF NOT EXISTS dmr.analytics_student_performance
+            (
+                student_id         INTEGER,
+                course_id          INTEGER,
+                department_id      INTEGER,
+                department_name    VARCHAR(255),
+                education_level    VARCHAR(255),
+                education_base     VARCHAR(255),
+                semester           INTEGER,
+                course_year        INTEGER,
+                final_grade        INTEGER,
+                total_events       INTEGER,
+                avg_weekly_events  DECIMAL(10, 2),
+                total_course_views INTEGER,
+                total_quiz_views   INTEGER,
+                total_module_views INTEGER,
+                total_submissions  INTEGER,
+                peak_activity_week INTEGER,
+                consistency_score  DECIMAL(5, 2),
+                activity_category  VARCHAR(255),
+                last_update        TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (student_id, course_id)
+            );
+            """
     with conn.cursor() as cur:
-        cur.execute(create_table_query)
-        conn.commit()
-        print("Таблица dmr.analytics_student успешно создана.")
+        cur.execute(query)
+    conn.commit()
 
-# заполнение таблицы dmr.analytics_student
-def insert_data(conn):
-    """
-    Заполняет витрину данными из public.user_logs.
-    """
-    select_query = """
-    WITH student_final AS (
-        SELECT 
-            userid,
-            courseid,
-            MAX(depart) AS department_id,
-            MAX(num_sem) AS semester,
-            MAX(kurs) AS course_year,
-            MAX(CAST(namer_level AS INTEGER)) AS final_grade
-        FROM public.user_logs
-        WHERE namer_level IS NOT NULL
-        GROUP BY userid, courseid
-    )
-    SELECT 
-        userid,
-        courseid,
-        department_id,
-        semester,
-        course_year,
-        final_grade
-    FROM student_final
-    WHERE final_grade IN (2,3,4,5);
-    """
 
-    insert_query = sql.SQL("""
-        INSERT INTO dmr.analytics_student 
-        (student_id, course_id, department_id, semester, course_year, final_grade)
-        VALUES %s
-        ON CONFLICT (student_id, course_id) 
-        DO UPDATE SET
-            department_id = EXCLUDED.department_id,
-            semester      = EXCLUDED.semester,
-            course_year   = EXCLUDED.course_year,
-            final_grade   = EXCLUDED.final_grade,
-            last_update   = CURRENT_TIMESTAMP;
-    """)
-
+def fill_base_ids(conn):
+    """Заполняем семестр, кафедры без имени, тут проблема, что кафедр в целом может быть несколько поэтому делаем DISTINCT по (userid, courseid)"""
+    query = """
+            INSERT INTO dmr.analytics_student_performance (student_id, course_id, department_id, semester, course_year, final_grade)
+            SELECT DISTINCT ON (userid, courseid) userid,
+                                                  courseid,
+                                                  depart,
+                                                  num_sem,
+                                                  kurs,
+                                                  namer_level
+            FROM public.user_logs
+            ORDER BY userid, courseid, num_week DESC
+            ON CONFLICT (student_id, course_id) DO NOTHING;
+            """
     with conn.cursor() as cur:
-        cur.execute(select_query)
-        rows = cur.fetchall()
-        
-        if not rows:
-            print("Нет данных для вставки.")
-            return
-        
-        data_tuples = [(row[0], row[1], row[2], row[3], row[4], row[5]) for row in rows]
-        execute_values(cur, insert_query, data_tuples, page_size=1000)
-        conn.commit()        
-        print(f"Витрина заполнена. Добавлено/обновлено записей: {cur.rowcount}")
+        cur.execute(query)
+    conn.commit()
+    print("ID и базовые поля заполнены.")
+
+
+def update_department_names(conn):
+    """обновляем названия кафедр."""
+    query = """
+            UPDATE dmr.analytics_student_performance perf
+            SET department_name = deps.name
+            FROM public.departments deps
+            WHERE perf.department_id = deps.id;
+            """
+    with conn.cursor() as cur: cur.execute(query)
+    conn.commit()
+    print("Названия кафедр обновлены.")
+
+
+def update_education_info(conn):
+    """Обновляем уровень и основу обучения"""
+    query = """
+            UPDATE dmr.analytics_student_performance perf
+            SET education_level = edu_level.lvl_name,
+                education_base  = edu_level.base
+            FROM (SELECT userid,
+                         courseid,
+                         -- маппинг уровней обучения
+                         MAX(CASE
+                                 WHEN leveled = 1 THEN 'бакалавриат'
+                                 WHEN leveled = 2 THEN 'магистратура'
+                                 WHEN leveled = 3 THEN 'специалитет'
+                                 WHEN leveled = 4 THEN 'аспирантура'
+                                 ELSE 'не определено'
+                             END) as lvl_name,
+                         -- маппинг основы обучения
+                         MAX(CASE
+                                 WHEN name_osno = 1 THEN 'бюджет'
+                                 WHEN name_osno = 2 THEN 'контракт'
+                                 ELSE 'не определено'
+                             END) as base
+                  FROM public.user_logs
+                  GROUP BY userid, courseid) edu_level
+            WHERE perf.student_id = edu_level.userid
+              AND perf.course_id = edu_level.courseid;
+            """
+    with conn.cursor() as cur:
+        cur.execute(query)
+    conn.commit()
+    print("Поля уровня обучения заполнены")
+
+
+def update_avg_weekly_events(conn):
+    """
+    Рассчитывает среднее количество событий в неделю.
+    Делит общее количество событий на количество недель активности.
+    """
+    query = """
+            UPDATE dmr.analytics_student_performance AS perf
+            SET avg_weekly_events = CAST(perf.total_events AS DECIMAL(10, 2)) / weeks_count
+            FROM (SELECT userid,
+                         courseid,
+                         COUNT(DISTINCT num_week) AS weeks_count
+                  FROM public.user_logs
+                  GROUP BY userid, courseid) AS activity_stats
+            WHERE perf.student_id = activity_stats.userid
+              AND perf.course_id = activity_stats.courseid;
+            """
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+    conn.commit()
+    print("Столбец avg_weekly_events обновлен.")
+
+
+def update_total_events(conn):
+    """Суммируем все события из всех строк лога по предмету."""
+    query = """
+            UPDATE dmr.analytics_student_performance perf
+            SET total_events       = logs.total,
+                total_course_views = logs.total_course,
+                total_submissions  = logs.total_submission,
+                total_quiz_views   = logs.total_quiz,
+                total_module_views = logs.total_module
+            FROM (SELECT userid,
+                         courseid,
+                         SUM(s_all)                        AS total,
+                         SUM(s_course_viewed)              AS total_course,
+                         SUM(s_q_attempt_viewed)           AS total_quiz,
+                         SUM(s_a_course_module_viewed)     AS total_module,
+                         SUM(s_a_submission_status_viewed) AS total_submission
+                  FROM public.user_logs
+                  GROUP BY userid, courseid) logs
+            WHERE perf.student_id = logs.userid
+              AND perf.course_id = logs.courseid;
+            """
+    with conn.cursor() as cur:
+        cur.execute(query)
+    conn.commit()
+    print("Столбец total_events заполнен.")
+
+
+def update_peak_activity_week(conn):
+    """
+    Определяем неделю с максимальной активностью.
+    Используем s_all для поиска максимума.
+    """
+    query = """
+            UPDATE dmr.analytics_student_performance AS perf
+            SET peak_activity_week = top_weeks.num_week
+            FROM (
+                     -- Выбираем по одной строке для каждой пары студент-курс
+                     SELECT DISTINCT ON (userid, courseid) userid,
+                                                           courseid,
+                                                           num_week
+                     FROM public.user_logs
+                     -- Сортируем по убыванию s_all, чтобы первая строка была пиковой.
+                     ORDER BY userid, courseid, s_all DESC, num_week) AS top_weeks
+            WHERE perf.student_id = top_weeks.userid
+              AND perf.course_id = top_weeks.courseid;
+            """
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+    conn.commit()
+    print("Столбец peak_activity_week заполнен.")
+
+
+def update_activity_category(conn):
+    """
+    Классифицируем студентов по категориям активности на основе квантилей total_events:
+    - Нижние 25% -> низкая
+    - Средние 50% -> средняя
+    - Верхние 25% -> высокая
+    """
+    query = """
+            WITH ranked_students AS
+                     (SELECT student_id,
+                             course_id,
+                             -- Функция NTILE разбивает всех на 4 группы по 25% на основе общего кол-ва событий
+                             NTILE(4) OVER (ORDER BY total_events) as quartile
+                      FROM dmr.analytics_student_performance)
+            UPDATE dmr.analytics_student_performance AS perf
+            SET activity_category =
+                    CASE
+                        WHEN ranks.quartile = 1 THEN 'низкая'
+                        WHEN ranks.quartile IN (2, 3) THEN 'средняя'
+                        WHEN ranks.quartile = 4 THEN 'высокая'
+                        END
+            FROM ranked_students AS ranks
+            WHERE perf.student_id = ranks.student_id
+              AND perf.course_id = ranks.course_id;
+            """
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+    conn.commit()
+    print("Категории активности обновлены.")
+
+
+def update_consistency_score(conn):
+    """
+    Рассчитывает коэффициент стабильности (0-1).
+    (кол-во недель с s_all > 0) / (общее кол-во недель курса).
+    """
+    query = """
+            WITH course_duration AS (
+                -- Считаем, сколько всего недель
+                SELECT courseid,
+                       userid,
+                       COUNT(DISTINCT num_week) AS total_course_weeks
+                FROM public.user_logs
+                GROUP BY courseid, userid),
+                 student_active_weeks AS (
+                     -- Считаем только те недели, где s_all > 0
+                     SELECT userid,
+                            courseid,
+                            COUNT(DISTINCT num_week) AS active_weeks_count
+                     FROM public.user_logs
+                     WHERE s_all > 0
+                     GROUP BY userid, courseid)
+            UPDATE dmr.analytics_student_performance AS perf
+            SET consistency_score = CAST(student_active_weeks.active_weeks_count AS DECIMAL(5, 2)) / total_course_weeks
+            FROM student_active_weeks
+                     JOIN course_duration ON student_active_weeks.courseid = course_duration.courseid
+            WHERE perf.student_id = student_active_weeks.userid
+              AND perf.course_id = student_active_weeks.courseid;
+            """
+
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+    conn.commit()
+    print("Коэффициент стабильности обновлен.")
+
 
 def main():
-    """Последовательное выполнение шагов."""
-    conn = None
+    conn = get_connection()
     try:
-        conn = get_connection()
+        # Создаем схему
         create_schema(conn)
+        # Создаем таблицу
         create_table(conn)
-        insert_data(conn)
-        print("\nВсе операции выполнены успешно!")
+
+        # Заполняем стобца
+        fill_base_ids(conn)
+        update_department_names(conn)
+        update_education_info(conn)
+        update_total_events(conn)
+        update_avg_weekly_events(conn)
+        update_peak_activity_week(conn)
+        update_activity_category(conn)
+        update_consistency_score(conn)
+
+        print("\nВитрина полностью собрана.")
     except Exception as e:
-        print(f"Ошибка в процессе выполнения: {e}")
-        if conn:
-            conn.rollback()
+        print(f"Ошибка: {e}")
+        conn.rollback()
     finally:
-        if conn:
-            conn.close()
-            print("Соединение с БД закрыто.")
+        conn.close()
+
 
 if __name__ == "__main__":
     main()

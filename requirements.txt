@@ -8,3 +8,4 @@ sqlalchemy
 psycopg2-binary
 ipython-sql
 nbformat
+apache-airflow==3.1.8

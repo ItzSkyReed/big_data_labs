@@ -13,3 +13,4 @@ owlready2
 rdflib
 graphviz
 pydotplus
+faker

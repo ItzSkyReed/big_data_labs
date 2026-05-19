@@ -1,0 +1,8 @@
+FROM apache/airflow:slim-3.1.8-python3.13
+RUN pip install --no-cache-dir \
+    asyncpg \
+    python-dotenv \
+    psycopg-binary \
+    faker \
+    "apache-airflow-providers-fab" \
+    apache-airflow-providers-postgres

@@ -5,7 +5,7 @@ seaborn
 matplotlib
 python-dotenv
 sqlalchemy
-psycopg2-binary
+psycopg-binary
 ipython-sql
 nbformat
 apache-airflow==3.1.8
@@ -13,4 +13,5 @@ owlready2
 rdflib
 graphviz
 pydotplus
+apache-airflow-providers-postgres
 faker

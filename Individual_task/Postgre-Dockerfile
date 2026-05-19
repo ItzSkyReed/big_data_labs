@@ -1,0 +1,6 @@
+# Используем официальный образ PostgreSQL
+FROM postgres:18
+
+
+# Копируем скрипт инициализации, который будет исполнен при старте
+COPY Individual_task/init.sh /docker-entrypoint-initdb.d/

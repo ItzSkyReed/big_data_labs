@@ -27,7 +27,7 @@ def build_student_mart_dag():
         query = text("""
                      TRUNCATE TABLE mart.student_performance;
 
-            -- Шаг Б: Считаем метрики и вставляем в витрину
+                     -- Шаг Б: Считаем метрики и вставляем в витрину
                      INSERT INTO mart.student_performance (student_id, group_id, avg_grade, total_credits, debt_count, scholarship_eligible)
 
                      WITH student_metrics AS (SELECT students.id       AS student_id,
@@ -79,5 +79,4 @@ def build_student_mart_dag():
     # Вызов таски
     process_mart()
 
-# Регистрация DAG
 build_student_mart_dag()

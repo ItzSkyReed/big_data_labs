@@ -37,7 +37,7 @@ activity_category	- VARCHAR	- Категория активности (низк�
 last_update	- TIMESTAMP	- Дата обновления записи
 """
 
-# Загружаем переменные из .env файла (если он есть)
+# Загружаем переменные из .env файла
 load_dotenv()
 
 
@@ -78,7 +78,7 @@ def create_schema(conn: connection):
             """
         )
         conn.commit()
-        print("Схема dmr создана (или уже существовала).")
+        print("Схема dmr создана.")
 
 
 def create_table(conn: connection):
@@ -114,7 +114,10 @@ def create_table(conn: connection):
 
 
 def fill_base_ids(conn):
-    """Заполняем семестр, кафедры без имени, тут проблема, что кафедр в целом может быть несколько поэтому делаем DISTINCT по (userid, courseid)"""
+    """
+    Заполняем семестр, кафедры без имени,
+    тут проблема, что кафедр в целом может быть несколько поэтому делаем DISTINCT по (userid, courseid)
+    """
     query = """
             INSERT INTO dmr.analytics_student_performance (student_id, course_id, department_id, semester, course_year, final_grade)
             SELECT DISTINCT ON (userid, courseid) userid,
@@ -141,7 +144,8 @@ def update_department_names(conn):
             FROM public.departments deps
             WHERE perf.department_id = deps.id;
             """
-    with conn.cursor() as cur: cur.execute(query)
+    with conn.cursor() as cur:
+        cur.execute(query)
     conn.commit()
     print("Названия кафедр обновлены.")
 
@@ -186,12 +190,10 @@ def update_avg_weekly_events(conn):
     """
     query = """
             UPDATE dmr.analytics_student_performance AS perf
-            SET avg_weekly_events = CAST(perf.total_events AS DECIMAL(10, 2)) / weeks_count
-            FROM (SELECT userid,
-                         courseid,
-                         COUNT(DISTINCT num_week) AS weeks_count
-                  FROM public.user_logs
-                  GROUP BY userid, courseid) AS activity_stats
+            SET avg_weekly_events = CAST(perf.total_events AS DECIMAL(10, 2)) / weeks_count 
+                FROM (SELECT userid,courseid, COUNT(DISTINCT num_week) AS weeks_count
+            FROM public.user_logs
+            GROUP BY userid, courseid) AS activity_stats
             WHERE perf.student_id = activity_stats.userid
               AND perf.course_id = activity_stats.courseid;
             """
@@ -256,9 +258,9 @@ def update_peak_activity_week(conn):
 def update_activity_category(conn):
     """
     Классифицируем студентов по категориям активности на основе квантилей total_events:
-    - Нижние 25% -> низкая
-    - Средние 50% -> средняя
-    - Верхние 25% -> высокая
+    - Нижние 25% - низкая
+    - Средние 50% - средняя
+    - Верхние 25% - высокая
     """
     query = """
             WITH ranked_students AS
@@ -297,7 +299,7 @@ def update_consistency_score(conn):
                        COUNT(DISTINCT num_week) AS total_course_weeks
                 FROM public.user_logs
                 GROUP BY courseid, userid),
-                 student_active_weeks AS (
+                student_active_weeks AS (
                      -- Считаем только те недели, где s_all > 0
                      SELECT userid,
                             courseid,
@@ -337,7 +339,7 @@ def main():
         update_activity_category(conn)
         update_consistency_score(conn)
 
-        print("\nВитрина полностью собрана.")
+        print("Витрина полностью собрана.")
     except Exception as e:
         print(f"Ошибка: {e}")
         conn.rollback()

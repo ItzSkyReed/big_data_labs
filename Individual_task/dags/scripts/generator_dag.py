@@ -3,21 +3,25 @@ from datetime import datetime
 from typing import Final
 
 from airflow.sdk import dag, task
+from airflow.sdk.definitions.asset import Dataset
 from faker import Faker
 from sqlalchemy import text
 
-from src.models import Lecturer, Student, Group, Subject, Grade, Session, Base, engine
+from src.models import Lecturer, Student, Group, Subject, Grade, Base, get_session
 
+university_raw_data = Dataset("university_app://raw_data")
 # константы для генерации данных
 N_GROUPS: Final[int] = 200
 N_STUDENTS_IN_GROUP: Final[int] = 25
 N_SUBJECTS: Final[int] = 15
+
 
 # институты
 class Institute:
     def __init__(self, institute: str, departments: tuple[str, ...]):
         self.institute = institute
         self.departments = departments
+
 
 INSTITUTES: Final[tuple[Institute, ...]] = (
     Institute(
@@ -161,9 +165,9 @@ SUBJECT_POOL = {
     ]
 }
 
-
 # логика генерации
 fake = Faker('ru_RU')
+
 
 def get_realistic_subject(department_name: str, course: int) -> str:
     """
@@ -205,12 +209,12 @@ def get_realistic_subject(department_name: str, course: int) -> str:
     final_pool = SUBJECT_POOL["Общие"] if is_general else SUBJECT_POOL[pool_key]
     return random.choice(final_pool)
 
+
 def generate_lecturers(n_per_dep: int = 3) -> list[Lecturer]:
     lecturers = []
     for inst in INSTITUTES:
         for dep in inst.departments:
             for _ in range(n_per_dep):
-
                 gender = random.choice(['male', 'female'])
                 fname = fake.first_name_male() if gender == 'male' else fake.first_name_female()
                 sname = fake.middle_name_male() if gender == 'male' else fake.middle_name_female()
@@ -218,6 +222,7 @@ def generate_lecturers(n_per_dep: int = 3) -> list[Lecturer]:
                 lecturers.append(Lecturer(first_name=fname, second_name=sname, last_name=lname, department=dep))
 
     return lecturers
+
 
 def generate_groups(n_groups: int = N_GROUPS) -> list[Group]:
     return [
@@ -227,6 +232,7 @@ def generate_groups(n_groups: int = N_GROUPS) -> list[Group]:
             department=random.choice(inst.departments)
         ) for i in range(1, n_groups + 1)
     ]
+
 
 def generate_subjects(groups: list[Group], lecturers: list[Lecturer]) -> list[Subject]:
     subjects = []
@@ -248,12 +254,12 @@ def generate_subjects(groups: list[Group], lecturers: list[Lecturer]) -> list[Su
             ))
     return subjects
 
+
 def generate_students(groups: list[Group]) -> list[Student]:
     students = []
     for group in groups:
 
         for _ in range(N_STUDENTS_IN_GROUP):
-
             gender = random.choice(['male', 'female'])
             fname = fake.first_name_male() if gender == 'male' else fake.first_name_female()
             sname = fake.middle_name_male() if gender == 'male' else fake.middle_name_female()
@@ -268,6 +274,7 @@ def generate_students(groups: list[Group]) -> list[Student]:
 
     return students
 
+
 def generate_grades(students: list[Student], subjects: list[Subject], lecturers: list[Lecturer]) -> list[Grade]:
     grades = []
     lecturer_dep_map = {l.id: l.department for l in lecturers}
@@ -281,16 +288,16 @@ def generate_grades(students: list[Student], subjects: list[Subject], lecturers:
 
     # Чем старше курс, тем выше шанс получить 4 и 5
     exam_weights_by_course = {
-        1: [0.08, 0.32, 0.45, 0.15], # 1 курс
-        2: [0.05, 0.25, 0.45, 0.25], # 2 курс
-        3: [0.02, 0.15, 0.50, 0.33], # 3 курс
+        1: [0.08, 0.32, 0.45, 0.15],  # 1 курс
+        2: [0.05, 0.25, 0.45, 0.25],  # 2 курс
+        3: [0.02, 0.15, 0.50, 0.33],  # 3 курс
         4: [0.01, 0.05, 0.40, 0.54]  # 4 курс
     }
 
     credit_weights_by_course = {
-        1: [0.85, 0.15], # 1 курс: 15% незачетов
-        2: [0.92, 0.08], # 2 курс: 8% незачетов
-        3: [0.97, 0.03], # 3 курс: 3% незачетов
+        1: [0.85, 0.15],  # 1 курс: 15% незачетов
+        2: [0.92, 0.08],  # 2 курс: 8% незачетов
+        3: [0.97, 0.03],  # 3 курс: 3% незачетов
         4: [0.99, 0.01]  # 4 курс: 1% незачетов
     }
 
@@ -321,23 +328,38 @@ def generate_grades(students: list[Student], subjects: list[Subject], lecturers:
 # dag
 @dag(
     dag_id="university_data_generator",
-    schedule="@daily", # Запуск каждый день
+    schedule="@daily",
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["generator", "university"]
 )
 def university_data_generator():
-
-    @task
+    @task(outlets=[university_raw_data])
     def generate_and_load_data():
-        with engine.begin() as conn:
-            conn.execute(text("CREATE SCHEMA IF NOT EXISTS mart;"))
+        # Открываем сессию
+        with get_session() as session:
 
-        # Создаем таблицы, если их еще нет
-        Base.metadata.create_all(engine)
+            session.execute(text("CREATE SCHEMA IF NOT EXISTS mart;"))
+            session.commit()
 
-        with Session(engine) as session:
-            # сид делаем разным, чтобы данные отличались
+            truncate_query = text("""
+                                  TRUNCATE TABLE 
+                                public.grades, 
+                                public.students, 
+                                public.subjects, 
+                                public.lecturers, 
+                                public.groups 
+                                RESTART IDENTITY CASCADE;
+                                  """)
+
+            session.execute(truncate_query)
+
+            session.commit()
+
+            engine = session.get_bind()
+            Base.metadata.create_all(engine)
+
+            # Настраиваем сид
             Faker.seed(random.randint(1, 10000))
 
             # Лекторы и Группы
@@ -368,8 +390,6 @@ def university_data_generator():
             print(f"Успешно добавлено: {len(lecturers)} преп., {len(groups)} групп, "
                   f"{len(subjects)} предм., {len(students)} студ., {len(grades)} оценок.")
 
-    # Вызов таски
     generate_and_load_data()
 
-# Регистрация DAG
 university_data_generator()

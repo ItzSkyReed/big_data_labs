@@ -1,8 +1,9 @@
+from contextlib import contextmanager
 from datetime import date
-from typing import Optional, List, Generator
+from typing import Optional, List, Generator, Any
 from sqlalchemy import Integer, String, Date, ForeignKey, CheckConstraint, create_engine, Float, Boolean
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy.orm.session import Session
 
 from src.config import Settings
 
@@ -12,20 +13,21 @@ class Base(DeclarativeBase):
     pass
 
 
-settings = Settings()
+@contextmanager
+def get_session() -> Generator[Session, Any, None]:
+    settings = Settings()
+    engine = create_engine(settings.database_url(), echo=False)
+    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
-engine = create_engine(settings.database_url(), echo=False, dialect=postgresql.dialect())
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    expire_on_commit=False,
-    class_=Session,
-)
-
-
-def get_session() -> Generator[Session, None, None]:
-    with SessionLocal() as session:
+    session = SessionLocal()
+    try:
         yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+        engine.dispose()
 
 
 class Group(Base):

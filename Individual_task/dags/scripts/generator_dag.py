@@ -341,25 +341,28 @@ def university_data_generator():
 
             session.execute(text("CREATE SCHEMA IF NOT EXISTS mart;"))
             session.commit()
+            try:
+                truncate_query = text("""
+                                      ;
+                                      DELETE FROM public.grades;
+                                      DELETE FROM public.students;
+                                      DELETE FROM public.subjects;
+                                      DELETE FROM public.lecturers;
+                                      DELETE FROM public.groups;
+    
+                                      ALTER SEQUENCE public.students_id_seq RESTART WITH 1;
+                                      ;
+                                      """)
 
-            truncate_query = text("""
-                                  TRUNCATE TABLE 
-                                public.grades, 
-                                public.students, 
-                                public.subjects, 
-                                public.lecturers, 
-                                public.groups 
-                                RESTART IDENTITY CASCADE;
-                                  """)
+                session.execute(truncate_query)
 
-            session.execute(truncate_query)
-
-            session.commit()
+                session.commit()
+            except Exception:
+                pass
 
             engine = session.get_bind()
             Base.metadata.create_all(engine)
 
-            # Настраиваем сид
             Faker.seed(random.randint(1, 10000))
 
             # Лекторы и Группы
@@ -377,7 +380,7 @@ def university_data_generator():
             session.add_all(subjects)
             session.add_all(students)
 
-            # чтобы подтянулись айдишники
+            # чтобы подтянулись айдишники студентов и предметов
             session.flush()
 
             # Оценки
@@ -387,8 +390,8 @@ def university_data_generator():
             # завершаем транзакцию
             session.commit()
 
-            print(f"Успешно добавлено: {len(lecturers)} преп., {len(groups)} групп, "
-                  f"{len(subjects)} предм., {len(students)} студ., {len(grades)} оценок.")
+            print(f"добавлено: {len(lecturers)} преподавателей, {len(groups)} групп, "
+                  f"{len(subjects)} предметов, {len(students)} студентов, {len(grades)} оценок.")
 
     generate_and_load_data()
 

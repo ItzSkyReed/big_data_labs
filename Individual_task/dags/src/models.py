@@ -48,7 +48,7 @@ class Student(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     second_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Если очества нет
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     birth_date: Mapped[date] = mapped_column(Date, nullable=False)
     admission_year: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -146,10 +146,10 @@ class GroupStats(Base):
 
     group_id: Mapped[int] = mapped_column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, primary_key=True)
 
-    # Курс (номер года обучения), на котором находится группа.
+    # Курс, на котором находится группа.
     course: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Институт (или факультет), к которому относится группа.
+    # Институт, к которому относится группа.
     institute: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Средний балл по группе
@@ -158,7 +158,7 @@ class GroupStats(Base):
     # Доля студентов в группе, не имеющих академических задолженностей (успевающих). Процент успешно сдавших сессию.
     pass_rate: Mapped[float] = mapped_column(Float, nullable=False)
 
-    # Предмет (название), по которому у группы самый высокий средний балл.
+    # Предмет, по которому у группы самый высокий средний балл.
     best_subject: Mapped[str] = mapped_column(String(255), nullable=False)
-    # Предмет (название), по которому у группы самый низкий средний балл.
+    # Предмет, по которому у группы самый низкий средний балл.
     worst_subject: Mapped[str] = mapped_column(String(255), nullable=False)
